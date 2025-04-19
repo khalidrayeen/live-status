@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1080, height=1920, initial-scale=1.0" />
+  <title>Leaderboard Viewer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      font-family: 'Bebas Neue', sans-serif;
+      background-color: white;
+      color: black;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      width: 100vw;
+      margin: 0;
+    }
+
+    .leaderboard {
+      width: 1100px;
+      background-color: white;
+      border-radius: 10px;
+      padding: 20px;
+      border: 2px solid black;
+      overflow: hidden;
+      text-align: center;
+      opacity: 0;
+      transform: translateX(-100%);
+      transition: opacity 1s ease-in-out, transform 1s ease-in-out;
+      box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .leaderboard.show {
+      animation: slideIn 1s forwards;
+    }
+
+    .leaderboard.hide {
+      animation: fadeOut 1s forwards;
+    }
+
+    .header, .team {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px;
+      border-bottom: 2px solid black;
+      font-size: 42px;
+      transition: transform 0.5s ease;
+      position: relative;
+    }
+
+    .team.eliminated {
+      opacity: 0.5;
+      animation: eliminatedFlash 0.8s ease;
+    }
+
+    .team.eliminated::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: red;
+      transform: translateY(-50%);
+    }
+
+    .header {
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+
+    .header span, .team span {
+      flex: 1;
+      text-align: center;
+    }
+
+    .status {
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      flex: 1;
+    }
+
+    .status div {
+      width: 10px;
+      height: 40px;
+      border-radius: 5px;
+      border: 1px solid black;
+      box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.3);
+    }
+
+    .status .eliminated {
+      background-color: red;
+    }
+
+    .status .alive {
+      background-color: black;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-100%);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes fadeOut {
+      from {
+        opacity: 1;
+        transform: translateX(0);
+      }
+      to {
+        opacity: 0;
+        transform: translateX(100%);
+      }
+    }
+
+    @keyframes eliminatedFlash {
+      0%, 100% { background: red; }
+      50% { background: white; }
+    }
+  </style>
+</head>
+<body>
+  <div class="leaderboard" id="leaderboard">
+    <div class="header">
+      <span>Team</span>
+      <span>Total Kills</span>
+      <span>Status</span>
+    </div>
+    <div id="teams-container"></div>
+  </div>
+
+  <script>
+    const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
+    const socket = new WebSocket(`${protocol}${location.host}`);
+
+    let firstLoad = true;
+    let fadeTimeout;
+    let previousTeams = [];
+    const animatedEliminations = new Set();
+
+    socket.addEventListener('open', () => {
+      console.log('Connected to WebSocket server');
+    });
+
+    socket.addEventListener('message', async event => {
+      try {
+        let data;
+
+        if (event.data instanceof Blob) {
+          const text = await event.data.text();
+          data = JSON.parse(text);
+        } else {
+          data = JSON.parse(event.data);
+        }
+
+        if (data.type === 'init' || data.type === 'update') {
+          updateViewer(data.data);
+        } else if (data.type === 'reset') {
+          clearViewer();
+        } else if (data.type === 'show') {
+          document.getElementById('leaderboard').classList.remove('hide');
+          document.getElementById('leaderboard').classList.add('show');
+        } else if (data.type === 'hide') {
+          document.getElementById('leaderboard').classList.remove('show');
+          document.getElementById('leaderboard').classList.add('hide');
+        }
+
+      } catch (err) {
+        console.error('❌ Failed to parse WebSocket message:', err);
+      }
+    });
+
+    function updateViewer(teams) {
+      const container = document.getElementById("teams-container");
+      const lb = document.getElementById("leaderboard");
+
+      if (firstLoad) {
+        lb.classList.add("show");
+        fadeTimeout = setTimeout(() => {
+          lb.classList.add("hide");
+        }, 60000);
+        firstLoad = false;
+      }
+
+      teams.sort((a, b) => b.kills - a.kills);
+      const prevMap = new Map(previousTeams.map(t => [t.teamName, t]));
+
+      // Create/update elements
+      teams.forEach(team => {
+        const prev = prevMap.get(team.teamName);
+        const isEliminated = team.status.every(s => s);
+        const wasEliminated = prev ? prev.status.every(s => s) : false;
+
+        let div = document.getElementById(`team-${team.teamName}`);
+        const isNew = !div;
+
+        if (!div) {
+          div = document.createElement("div");
+          div.className = "team";
+          div.id = `team-${team.teamName}`;
+        }
+
+        const newHTML = `
+          <span>${team.teamName}</span>
+          <span>${team.kills}</span>
+          <div class="status">
+            ${team.status.map(s =>
+              `<div class="${s ? 'eliminated' : 'alive'}"></div>`
+            ).join('')}
+          </div>`;
+
+        if (div.innerHTML !== newHTML) {
+          div.innerHTML = newHTML;
+        }
+
+        // Animate only once when team becomes eliminated
+        if (isEliminated && !animatedEliminations.has(team.teamName)) {
+          div.classList.add("eliminated");
+          animatedEliminations.add(team.teamName);
+        } else if (!isEliminated) {
+          div.classList.remove("eliminated");
+          animatedEliminations.delete(team.teamName);
+        }
+
+        if (isNew) {
+          container.appendChild(div);
+        }
+      });
+
+      // Reorder elements ONLY if necessary
+      const currentOrder = Array.from(container.children);
+      teams.forEach((team, index) => {
+        const div = document.getElementById(`team-${team.teamName}`);
+        if (container.children[index] !== div) {
+          container.insertBefore(div, container.children[index]);
+        }
+      });
+
+      previousTeams = JSON.parse(JSON.stringify(teams));
+    }
+
+    function clearViewer() {
+      const container = document.getElementById("teams-container");
+      const lb = document.getElementById("leaderboard");
+
+      container.innerHTML = '';
+      lb.classList.remove("show");
+      lb.classList.add("hide");
+      previousTeams = [];
+      animatedEliminations.clear();
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Panel</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #002d2d;
+      color: white;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      color: #00ffcc;
+    }
+    .team {
+      display: flex;
+      align-items: center;
+      margin: 10px 0;
+      background-color: #004040;
+      padding: 10px;
+      border-radius: 10px;
+    }
+    .team-name {
+      width: 150px;
+    }
+    .kills-input {
+      width: 50px;
+      margin-right: 15px;
+    }
+    .player-status {
+      display: flex;
+      gap: 10px;
+    }
+    .player-status div {
+      width: 20px;
+      height: 40px;
+      background-color: white;
+      border-radius: 5px;
+      cursor: pointer;
+      border: 2px solid #000;
+    }
+    .eliminated {
+      background-color: red !important;
+    }
+
+    .animate-once {
+      animation: eliminatedFlash 1s ease;
+    }
+
+    @keyframes eliminatedFlash {
+      0%, 100% { background: red; }
+      50% { background: white; }
+    }
+
+    #team-list {
+      margin-top: 20px;
+    }
+    input[type="text"], textarea {
+      padding: 8px;
+      margin-right: 10px;
+      font-size: 14px;
+    }
+    textarea {
+      width: 300px;
+      margin-bottom: 10px;
+    }
+    button {
+      padding: 8px 12px;
+      background-color: #00cc99;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .control-buttons {
+      margin-top: 20px;
+      display: flex;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>BGMI Admin Panel</h1>
+
+  <!-- Bulk team input -->
+  <textarea id="bulkTeamInput" placeholder="Paste team names (one per line)" rows="6"></textarea><br />
+  <button onclick="addTeamsBulk()">Add Teams</button>
+  <br><br>
+
+  <!-- Optional single team input -->
+  <input type="text" id="teamNameInput" placeholder="Enter team name"/>
+  <button onclick="addTeam()">Add Team</button>
+
+  <div class="control-buttons">
+    <button onclick="sendShow()">👁 Show Viewer</button>
+    <button onclick="sendHide()">🚫 Hide Viewer</button>
+  </div>
+
+  <div id="team-list"></div>
+
+  <script>
+    const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
+    const socket = new WebSocket(`${protocol}${location.host}`);
+
+    socket.addEventListener('open', () => {
+      console.log('✅ Connected to WebSocket server');
+    });
+
+    let teams = [];
+
+    function addTeam() {
+      const teamName = document.getElementById('teamNameInput').value.trim();
+      if (!teamName) return;
+
+      teams.push({
+        name: teamName,
+        kills: 0,
+        status: ['A', 'A', 'A', 'A'],
+      });
+
+      renderTeams();
+      sendUpdate();
+      document.getElementById('teamNameInput').value = '';
+    }
+
+    function addTeamsBulk() {
+      const input = document.getElementById('bulkTeamInput').value.trim();
+      if (!input) return;
+
+      const names = input.split(/\n+/).map(n => n.trim()).filter(n => n !== '');
+      names.forEach(name => {
+        teams.push({
+          name,
+          kills: 0,
+          status: ['A', 'A', 'A', 'A'],
+        });
+      });
+
+      renderTeams();
+      sendUpdate();
+      document.getElementById('bulkTeamInput').value = '';
+    }
+
+    function renderTeams() {
+      const container = document.getElementById('team-list');
+      container.innerHTML = '';
+
+      teams.forEach((team, teamIndex) => {
+        const div = document.createElement('div');
+        div.className = 'team';
+
+        const name = document.createElement('div');
+        name.className = 'team-name';
+        name.innerText = team.name;
+        div.appendChild(name);
+
+        const killInput = document.createElement('input');
+        killInput.type = 'number';
+        killInput.className = 'kills-input';
+        killInput.value = team.kills;
+        killInput.oninput = (e) => {
+          teams[teamIndex].kills = parseInt(e.target.value || 0);
+          sendUpdate();
+        };
+        div.appendChild(killInput);
+
+        const statusContainer = document.createElement('div');
+        statusContainer.className = 'player-status';
+
+        team.status.forEach((s, playerIndex) => {
+          const stat = document.createElement('div');
+          if (s === 'F') stat.classList.add('eliminated');
+
+          stat.addEventListener('click', () => {
+            const currentStatus = teams[teamIndex].status[playerIndex];
+            const newStatus = currentStatus === 'F' ? 'A' : 'F';
+            teams[teamIndex].status[playerIndex] = newStatus;
+
+            // Toggle class directly on the clicked element
+            stat.classList.toggle('eliminated');
+
+            // Trigger animation only on this element
+            stat.classList.add('animate-once');
+            stat.addEventListener('animationend', () => {
+              stat.classList.remove('animate-once');
+            }, { once: true });
+
+            sendUpdate();
+          });
+
+          statusContainer.appendChild(stat);
+        });
+
+        div.appendChild(statusContainer);
+        container.appendChild(div);
+      });
+    }
+
+    function sendUpdate() {
+      const normalized = teams.map(team => ({
+        teamName: team.name,
+        kills: team.kills,
+        status: team.status.map(s => s === 'F') // true = eliminated
+      }));
+
+      socket.send(JSON.stringify({
+        type: 'update',
+        data: normalized
+      }));
+    }
+
+    function sendShow() {
+      socket.send(JSON.stringify({ type: 'show' }));
+    }
+
+    function sendHide() {
+      socket.send(JSON.stringify({ type: 'hide' }));
+    }
+  </script>
+</body>
+</html>
