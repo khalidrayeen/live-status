@@ -21,6 +21,11 @@ module.exports = function (wss) {
         const msg = JSON.parse(message);
 
         switch (msg.type) {
+
+          case 'background':
+           broadcast({ type: 'background', url: msg.url });
+            break;
+
           case 'update':
             leaderboardData = msg.data;
             broadcast({ type: 'update', data: leaderboardData });
