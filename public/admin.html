@@ -99,6 +99,14 @@
     <input type="text" id="bgUrlInput" placeholder="Paste background image URL" style="width: 300px;">
     <button onclick="sendBackgroundUrl()">Set Background</button>
   </div>
+  <div style="margin-top: 20px;">
+    <label>Team Text Color: <input type="color" id="teamColor" value="#000000"></label>
+    <label>Kill Color: <input type="color" id="killColor" value="#000000"></label>
+    <label>Alive Box Color: <input type="color" id="aliveColor" value="#000000"></label>
+    <label>Eliminated Box Color: <input type="color" id="elimColor" value="#ff0000"></label>
+    <button onclick="sendColorConfig()">🎨 Apply Colors</button>
+  </div>
+  
   
 
   <!-- Bulk team input -->
@@ -139,6 +147,24 @@
     url: url
   }));
 }
+
+function sendColorConfig() {
+  const teamColor = document.getElementById('teamColor').value;
+  const killColor = document.getElementById('killColor').value;
+  const aliveColor = document.getElementById('aliveColor').value;
+  const elimColor = document.getElementById('elimColor').value;
+
+  socket.send(JSON.stringify({
+    type: 'color-config',
+    colors: {
+      teamColor,
+      killColor,
+      aliveColor,
+      elimColor
+    }
+  }));
+}
+
 
 
 

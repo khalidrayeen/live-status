@@ -1,10 +1,11 @@
 module.exports = function (wss) {
   let leaderboardData = [];
+  let colorConfig = {}; // New: Store latest color config
 
   function broadcast(message) {
     const data = JSON.stringify(message);
     wss.clients.forEach((client) => {
-      if (client.readyState === 1) { // WebSocket.OPEN
+      if (client.readyState === 1) {
         client.send(data);
       }
     });
@@ -13,8 +14,11 @@ module.exports = function (wss) {
   wss.on('connection', (ws) => {
     console.log("✅ New WebSocket connection");
 
-    // Send initial leaderboard data to the new client
+    // Send current leaderboard and color config to the new client
     ws.send(JSON.stringify({ type: 'init', data: leaderboardData }));
+    if (Object.keys(colorConfig).length > 0) {
+      ws.send(JSON.stringify({ type: 'color-config', colors: colorConfig }));
+    }
 
     ws.on('message', (message) => {
       try {
@@ -23,12 +27,17 @@ module.exports = function (wss) {
         switch (msg.type) {
 
           case 'background':
-           broadcast({ type: 'background', url: msg.url });
+            broadcast({ type: 'background', url: msg.url });
             break;
 
           case 'update':
             leaderboardData = msg.data;
             broadcast({ type: 'update', data: leaderboardData });
+            break;
+
+          case 'color-config':
+            colorConfig = msg.colors || {};
+            broadcast({ type: 'color-config', colors: colorConfig });
             break;
 
           case 'show':
