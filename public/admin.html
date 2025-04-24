@@ -111,11 +111,13 @@
   <div class="control-buttons">
     <button onclick="sendShow()">👁 Show Viewer</button>
     <button onclick="sendHide()">🚫 Hide Viewer</button>
+    <button onclick="resetAll()">🧹 Reset All</button>
   </div>
 
   <div id="statusMessage" style="margin-top: 10px; font-weight: bold; color: #00ffcc;">
     Live Status: <span id="liveStatus">Not Visible ❌</span>
   </div>
+  
 
   <div id="team-list"></div>
 
@@ -128,6 +130,17 @@
     socket.addEventListener('open', () => {
       console.log('✅ Connected to WebSocket server');
     });
+
+    function resetAll() {
+  if (confirm("Are you sure you want to reset all data?")) {
+    teams = [];
+    renderTeams();
+    document.getElementById('liveStatus').innerText = 'Not Visible ❌';
+    document.getElementById('liveStatus').style.color = 'red';
+    socket.send(JSON.stringify({ type: 'reset' }));
+  }
+}
+
 
     socket.addEventListener('message', (event) => {
       const msg = JSON.parse(event.data);

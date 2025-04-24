@@ -16,7 +16,8 @@ module.exports = function (wss) {
   wss.on('connection', (ws) => {
     console.log("✅ New WebSocket connection");
 
-    ws.send(JSON.stringify({ type: 'update', data: leaderboardData }));
+    // Send latest full state
+    ws.send(JSON.stringify({ type: 'init', data: leaderboardData }));
     if (Object.keys(colorConfig).length > 0)
       ws.send(JSON.stringify({ type: 'color-config', colors: colorConfig }));
     if (bgUrl)
@@ -32,26 +33,34 @@ module.exports = function (wss) {
             bgUrl = msg.url;
             broadcast({ type: 'background', url: bgUrl });
             break;
+
           case 'update':
             leaderboardData = msg.data;
             broadcast({ type: 'update', data: leaderboardData });
             break;
+
           case 'color-config':
             colorConfig = msg.colors || {};
             broadcast({ type: 'color-config', colors: colorConfig });
             break;
+
           case 'show':
             isVisible = true;
             broadcast({ type: 'show' });
             break;
+
           case 'hide':
             isVisible = false;
             broadcast({ type: 'hide' });
             break;
+
           case 'reset':
             leaderboardData = [];
+            isVisible = false;
+            bgUrl = '';
             broadcast({ type: 'reset' });
             break;
+
           default:
             console.log("⚠️ Unknown message type:", msg.type);
         }
