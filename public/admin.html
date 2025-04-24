@@ -16,16 +16,13 @@
       color: #00ffcc;
     }
     .team {
-  display: flex;
-  align-items: center;
-  background-color: #004040;
-  padding: 10px;
-  border-radius: 10px;
-  margin-bottom: 8px; /* This becomes your "divider" */
-}
-
-
-
+      display: flex;
+      align-items: center;
+      background-color: #004040;
+      padding: 10px;
+      border-radius: 10px;
+      margin-bottom: 8px;
+    }
     .team-name {
       width: 150px;
     }
@@ -48,16 +45,13 @@
     .eliminated {
       background-color: red !important;
     }
-
     .animate-once {
       animation: eliminatedFlash 1s ease;
     }
-
     @keyframes eliminatedFlash {
       0%, 100% { background: red; }
       50% { background: white; }
     }
-
     #team-list {
       margin-top: 20px;
     }
@@ -84,21 +78,21 @@
       gap: 10px;
     }
     .team:last-child {
-  margin-bottom: 0;
-}
-.team:nth-child(even) {
-  background-color: #003737;
-}
-
-
+      margin-bottom: 0;
+    }
+    .team:nth-child(even) {
+      background-color: #003737;
+    }
   </style>
 </head>
 <body>
   <h1>BGMI LIVE STATUS</h1>
+
   <div style="margin-top: 20px;">
     <input type="text" id="bgUrlInput" placeholder="Paste background image URL" style="width: 300px;">
     <button onclick="sendBackgroundUrl()">Set Background</button>
   </div>
+
   <div style="margin-top: 20px;">
     <label>Team Text Color: <input type="color" id="teamColor" value="#000000"></label>
     <label>Kill Color: <input type="color" id="killColor" value="#000000"></label>
@@ -106,28 +100,22 @@
     <label>Eliminated Box Color: <input type="color" id="elimColor" value="#ff0000"></label>
     <button onclick="sendColorConfig()">🎨 Apply Colors</button>
   </div>
-  
-  
 
-  <!-- Bulk team input -->
   <textarea id="bulkTeamInput" placeholder="Paste team names (one per line)" rows="6"></textarea><br />
   <button onclick="addTeamsBulk()">Add Teams</button>
   <br><br>
 
-  <!-- Optional single team input -->
   <input type="text" id="teamNameInput" placeholder="Enter team name"/>
   <button onclick="addTeam()">Add Team</button>
 
   <div class="control-buttons">
     <button onclick="sendShow()">👁 Show Viewer</button>
     <button onclick="sendHide()">🚫 Hide Viewer</button>
-    
   </div>
+
   <div id="statusMessage" style="margin-top: 10px; font-weight: bold; color: #00ffcc;">
     Live Status: <span id="liveStatus">Not Visible ❌</span>
   </div>
-  
-
 
   <div id="team-list"></div>
 
@@ -135,51 +123,60 @@
     const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
     const socket = new WebSocket(`${protocol}${location.host}`);
 
+    let teams = [];
+
     socket.addEventListener('open', () => {
       console.log('✅ Connected to WebSocket server');
     });
+
+    socket.addEventListener('message', (event) => {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'update') {
+        teams = msg.data.map(t => ({
+          name: t.teamName,
+          kills: t.kills,
+          status: t.status.map(isF => isF ? 'F' : 'A')
+        }));
+        renderTeams();
+      } else if (msg.type === 'background') {
+        document.getElementById('bgUrlInput').value = msg.url;
+      } else if (msg.type === 'color-config') {
+        const { teamColor, killColor, aliveColor, elimColor } = msg.colors || {};
+        if (teamColor) document.getElementById('teamColor').value = teamColor;
+        if (killColor) document.getElementById('killColor').value = killColor;
+        if (aliveColor) document.getElementById('aliveColor').value = aliveColor;
+        if (elimColor) document.getElementById('elimColor').value = elimColor;
+      } else if (msg.type === 'show') {
+        document.getElementById('liveStatus').innerText = 'Visible ✅';
+        document.getElementById('liveStatus').style.color = '#00ffcc';
+      } else if (msg.type === 'hide') {
+        document.getElementById('liveStatus').innerText = 'Not Visible ❌';
+        document.getElementById('liveStatus').style.color = 'red';
+      }
+    });
+
     function sendBackgroundUrl() {
-  const url = document.getElementById('bgUrlInput').value.trim();
-  if (!url) return;
-
-  socket.send(JSON.stringify({
-    type: 'background',
-    url: url
-  }));
-}
-
-function sendColorConfig() {
-  const teamColor = document.getElementById('teamColor').value;
-  const killColor = document.getElementById('killColor').value;
-  const aliveColor = document.getElementById('aliveColor').value;
-  const elimColor = document.getElementById('elimColor').value;
-
-  socket.send(JSON.stringify({
-    type: 'color-config',
-    colors: {
-      teamColor,
-      killColor,
-      aliveColor,
-      elimColor
+      const url = document.getElementById('bgUrlInput').value.trim();
+      if (!url) return;
+      socket.send(JSON.stringify({ type: 'background', url }));
     }
-  }));
-}
 
+    function sendColorConfig() {
+      const teamColor = document.getElementById('teamColor').value;
+      const killColor = document.getElementById('killColor').value;
+      const aliveColor = document.getElementById('aliveColor').value;
+      const elimColor = document.getElementById('elimColor').value;
 
-
-
-    let teams = [];
+      socket.send(JSON.stringify({
+        type: 'color-config',
+        colors: { teamColor, killColor, aliveColor, elimColor }
+      }));
+    }
 
     function addTeam() {
       const teamName = document.getElementById('teamNameInput').value.trim();
       if (!teamName) return;
-
-      teams.push({
-        name: teamName,
-        kills: 0,
-        status: ['A', 'A', 'A', 'A'],
-      });
-
+      teams.push({ name: teamName, kills: 0, status: ['A', 'A', 'A', 'A'] });
       renderTeams();
       sendUpdate();
       document.getElementById('teamNameInput').value = '';
@@ -188,16 +185,10 @@ function sendColorConfig() {
     function addTeamsBulk() {
       const input = document.getElementById('bulkTeamInput').value.trim();
       if (!input) return;
-
       const names = input.split(/\n+/).map(n => n.trim()).filter(n => n !== '');
       names.forEach(name => {
-        teams.push({
-          name,
-          kills: 0,
-          status: ['A', 'A', 'A', 'A'],
-        });
+        teams.push({ name, kills: 0, status: ['A', 'A', 'A', 'A'] });
       });
-
       renderTeams();
       sendUpdate();
       document.getElementById('bulkTeamInput').value = '';
@@ -212,16 +203,15 @@ function sendColorConfig() {
         div.className = 'team';
 
         const slot = document.createElement('div');
-slot.style.width = '40px';
-slot.style.marginRight = '10px';
-slot.innerText = teamIndex + 2; // Start from 2
-div.appendChild(slot);
+        slot.style.width = '40px';
+        slot.style.marginRight = '10px';
+        slot.innerText = teamIndex + 1;
+        div.appendChild(slot);
 
-const name = document.createElement('div');
-name.className = 'team-name';
-name.innerText = team.name;
-div.appendChild(name);
-
+        const name = document.createElement('div');
+        name.className = 'team-name';
+        name.innerText = team.name;
+        div.appendChild(name);
 
         const killInput = document.createElement('input');
         killInput.type = 'number';
@@ -241,19 +231,13 @@ div.appendChild(name);
           if (s === 'F') stat.classList.add('eliminated');
 
           stat.addEventListener('click', () => {
-            const currentStatus = teams[teamIndex].status[playerIndex];
-            const newStatus = currentStatus === 'F' ? 'A' : 'F';
+            const newStatus = s === 'F' ? 'A' : 'F';
             teams[teamIndex].status[playerIndex] = newStatus;
-
-            // Toggle class directly on the clicked element
             stat.classList.toggle('eliminated');
-
-            // Trigger animation only on this element
             stat.classList.add('animate-once');
             stat.addEventListener('animationend', () => {
               stat.classList.remove('animate-once');
             }, { once: true });
-
             sendUpdate();
           });
 
@@ -269,7 +253,7 @@ div.appendChild(name);
       const normalized = teams.map(team => ({
         teamName: team.name,
         kills: team.kills,
-        status: team.status.map(s => s === 'F') // true = eliminated
+        status: team.status.map(s => s === 'F')
       }));
 
       socket.send(JSON.stringify({
@@ -279,17 +263,11 @@ div.appendChild(name);
     }
 
     function sendShow() {
-      
       socket.send(JSON.stringify({ type: 'show' }));
-      document.getElementById('liveStatus').innerText = 'Visible ✅';
-      document.getElementById('liveStatus').style.color = '#00ffcc';
-      
     }
 
     function sendHide() {
       socket.send(JSON.stringify({ type: 'hide' }));
-      document.getElementById('liveStatus').innerText = 'Not Visible ❌';
-  document.getElementById('liveStatus').style.color = 'red';
     }
   </script>
 </body>
