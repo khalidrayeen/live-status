@@ -6,33 +6,100 @@
   <title>Admin Panel</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background-color: #002d2d;
-      color: white;
+      font-family: 'Poppins', sans-serif;
+      background-color: #121212;
+      color: #e0e0e0;
       padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
     h1 {
       text-align: center;
-      color: #00ffcc;
+      color: #00e676;
+      margin-bottom: 30px;
+    }
+    .section {
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 25px;
+      gap: 10px;
+    }
+    input[type="text"],
+    textarea {
+      width: 100%;
+      padding: 10px;
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+    input[type="text"]:focus,
+    textarea:focus {
+      border-color: #00e676;
+    }
+    label {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    button {
+      padding: 12px;
+      background-color: #00c853;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.1s, filter 0.2s, box-shadow 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    button:hover {
+      background-color: #00e676;
+    }
+    button:active {
+      transform: scale(0.96);
+      background-color: #00c853;
+      filter: brightness(85%);
+      box-shadow: 0 0 10px #00e676;
+    }
+    #statusMessage {
+      margin-top: 10px;
+      font-weight: bold;
+      color: #00e676;
+      display: flex;
+      align-items: center;
+      gap: 5px;
     }
     .team {
       display: flex;
       align-items: center;
-      background-color: #004040;
+      background-color: #1e1e1e;
       padding: 10px;
       border-radius: 10px;
       margin-bottom: 8px;
+      gap: 10px;
     }
     .team-name {
-      width: 150px;
+      flex-grow: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
     .kills-input {
-      width: 50px;
-      margin-right: 15px;
+      width: 60px;
     }
     .player-status {
       display: flex;
-      gap: 10px;
+      gap: 5px;
     }
     .player-status div {
       width: 20px;
@@ -40,10 +107,15 @@
       background-color: white;
       border-radius: 5px;
       cursor: pointer;
-      border: 2px solid #000;
+      border: 2px solid #333;
     }
     .eliminated {
       background-color: red !important;
+    }
+    .control-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
     .animate-once {
       animation: eliminatedFlash 1s ease;
@@ -52,102 +124,148 @@
       0%, 100% { background: red; }
       50% { background: white; }
     }
-    #team-list {
-      margin-top: 20px;
+    .green-tick {
+      color: #00e676;
+      font-size: 18px;
+      margin-left: 5px;
+      animation: pop 0.3s ease;
     }
-    input[type="text"], textarea {
-      padding: 8px;
-      margin-right: 10px;
-      font-size: 14px;
+    @keyframes pop {
+      0% { transform: scale(0); }
+      100% { transform: scale(1); }
     }
-    textarea {
-      width: 300px;
-      margin-bottom: 10px;
-    }
-    button {
-      padding: 8px 12px;
-      background-color: #00cc99;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    .control-buttons {
-      margin-top: 20px;
+
+    /* Color picker wrapper */
+    .color-picker-wrapper {
       display: flex;
+      align-items: center;
       gap: 10px;
     }
-    .team:last-child {
-      margin-bottom: 0;
+    .color-square {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      border: 1px solid #333;
+      overflow: hidden;
+      background: #1e1e1e;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    .team:nth-child(even) {
-      background-color: #003737;
+    .color-square input[type="color"] {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: none;
+      cursor: pointer;
+      padding: 0;
+    }
+    .color-hex {
+      font-size: 14px;
+      color: #aaa;
     }
   </style>
 </head>
 <body>
   <h1>BGMI LIVE STATUS</h1>
 
-  <div style="margin-top: 20px;">
-    <input type="text" id="bgUrlInput" placeholder="Paste background image URL" style="width: 300px;">
-    <button onclick="sendBackgroundUrl()">Set Background</button>
+  <div class="section">
+    <input type="text" id="bgUrlInput" placeholder="Paste background image URL">
+    <button onclick="handleAction(sendBackgroundUrl)">Set Background</button>
   </div>
 
-  <div style="margin-top: 20px;">
-    <label>Team Text Color: <input type="color" id="teamColor" value="#000000"></label>
-    <label>Kill Color: <input type="color" id="killColor" value="#000000"></label>
-    <label>Alive Box Color: <input type="color" id="aliveColor" value="#000000"></label>
-    <label>Eliminated Box Color: <input type="color" id="elimColor" value="#ff0000"></label>
-    <button onclick="sendColorConfig()">🎨 Apply Colors</button>
+  <div class="section">
+    <label>Team Text Color:</label>
+    <div class="color-picker-wrapper">
+      <div class="color-square">
+        <input type="color" id="teamColor" onchange="updateHex('teamColor', 'teamColorHex')">
+      </div>
+      <span id="teamColorHex" class="color-hex">#ffffff</span>
+    </div>
+
+    <label>Kill Color:</label>
+    <div class="color-picker-wrapper">
+      <div class="color-square">
+        <input type="color" id="killColor" onchange="updateHex('killColor', 'killColorHex')">
+      </div>
+      <span id="killColorHex" class="color-hex">#ffffff</span>
+    </div>
+
+    <label>Alive Box Color:</label>
+    <div class="color-picker-wrapper">
+      <div class="color-square">
+        <input type="color" id="aliveColor" onchange="updateHex('aliveColor', 'aliveColorHex')">
+      </div>
+      <span id="aliveColorHex" class="color-hex">#ffffff</span>
+    </div>
+
+    <label>Eliminated Box Color:</label>
+    <div class="color-picker-wrapper">
+      <div class="color-square">
+        <input type="color" id="elimColor" value="#ff0000" onchange="updateHex('elimColor', 'elimColorHex')">
+      </div>
+      <span id="elimColorHex" class="color-hex">#ff0000</span>
+    </div>
+
+    <button onclick="handleAction(sendColorConfig)">🎨 Apply Colors</button>
   </div>
 
-  <h3>ViewerEliminated Settings</h3>
-
-<label for="viewereli-bgurl">ViewerEli Background Image URL:</label>
-<input type="text" id="viewereli-bgurl" placeholder="Enter background image URL">
-
-<label for="viewereli-textcolor">ViewerEli Text Color:</label>
-<input type="color" id="viewereli-textcolor" value="#FFFFFF">
-
-<button onclick="updateViewerEliSettings()">Update ViewerEli Settings</button>
-
-
-  <textarea id="bulkTeamInput" placeholder="Paste team name and logo URL (comma/tab-separated per line)" rows="6"></textarea><br />
-  <button onclick="addTeamsBulk()">Add Teams</button>
-
-  <input type="text" id="teamNameInput" placeholder="Enter team name"/>
-  <button onclick="addTeam()">Add Team</button>
-
-  <div class="control-buttons">
-    <button onclick="sendShow()">👁 Show Viewer</button>
-    <button onclick="sendHide()">🚫 Hide Viewer</button>
-    <button onclick="resetAll()">🧹 Reset All</button>
+  <div class="section">
+    <h3>ViewerEliminated Settings</h3>
+    <input type="text" id="viewereli-bgurl" placeholder="ViewerEli Background URL">
+    <div class="color-picker-wrapper">
+      <div class="color-square">
+        <input type="color" id="viewereli-textcolor" value="#FFFFFF" onchange="updateHex('viewereli-textcolor', 'viewereliTextColorHex')">
+      </div>
+      <span id="viewereliTextColorHex" class="color-hex">#ffffff</span>
+    </div>
+    <button onclick="handleAction(updateViewerEliSettings)">Update ViewerEli Settings</button>
   </div>
 
-  <div id="statusMessage" style="margin-top: 10px; font-weight: bold; color: #00ffcc;">
-    Live Status: <span id="liveStatus">Not Visible ❌</span>
+  <div class="section">
+    <textarea id="bulkTeamInput" placeholder="Paste team name and logo URL (comma/tab-separated per line)" rows="6"></textarea>
+    <button onclick="handleAction(addTeamsBulk)">Add Teams in Bulk</button>
   </div>
-  
-  <div id="team-list"></div>
+
+  <div class="section">
+    <input type="text" id="teamNameInput" placeholder="Enter team name and logo URL (comma or tab)">
+    <button onclick="handleAction(addTeam)">Add Single Team</button>
+  </div>
+
+  <div class="section control-buttons">
+    <button onclick="handleAction(sendShow)">👁 Show Viewer</button>
+    <button onclick="handleAction(sendHide)">🚫 Hide Viewer</button>
+    <button onclick="handleAction(resetAll)">🧹 Reset All</button>
+  </div>
+
+  <div id="statusMessage">Live Status: <span id="liveStatus">Not Visible ❌</span></div>
+
+  <div id="team-list" class="section"></div>
 
   <script>
     const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
     const socket = new WebSocket(`${protocol}${location.host}`);
-
     let teams = [];
 
-    socket.addEventListener('open', () => {
-      console.log('✅ Connected to WebSocket server');
-    });
+    socket.addEventListener('open', () => console.log('✅ Connected to WebSocket server'));
 
-    function resetAll() {
-      if (confirm("Are you sure you want to reset all data?")) {
-        teams = [];
-        renderTeams();
-        document.getElementById('liveStatus').innerText = 'Not Visible ❌';
-        document.getElementById('liveStatus').style.color = 'red';
-        socket.send(JSON.stringify({ type: 'reset' }));
-      }
+    function handleAction(actionFn) {
+      actionFn();
+      showGreenTick();
+    }
+
+    function showGreenTick() {
+      const statusDiv = document.getElementById('statusMessage');
+      const tick = document.createElement('span');
+      tick.innerHTML = '✅';
+      tick.className = 'green-tick';
+      statusDiv.appendChild(tick);
+      setTimeout(() => tick.remove(), 1000);
+    }
+
+    function updateHex(colorInputId, hexDisplayId) {
+      const color = document.getElementById(colorInputId).value.toUpperCase();
+      document.getElementById(hexDisplayId).innerText = color;
     }
 
     socket.addEventListener('message', (event) => {
@@ -164,13 +282,13 @@
         document.getElementById('bgUrlInput').value = msg.url;
       } else if (msg.type === 'color-config') {
         const { teamColor, killColor, aliveColor, elimColor } = msg.colors || {};
-        if (teamColor) document.getElementById('teamColor').value = teamColor;
-        if (killColor) document.getElementById('killColor').value = killColor;
-        if (aliveColor) document.getElementById('aliveColor').value = aliveColor;
-        if (elimColor) document.getElementById('elimColor').value = elimColor;
+        if (teamColor) { document.getElementById('teamColor').value = teamColor; updateHex('teamColor', 'teamColorHex'); }
+        if (killColor) { document.getElementById('killColor').value = killColor; updateHex('killColor', 'killColorHex'); }
+        if (aliveColor) { document.getElementById('aliveColor').value = aliveColor; updateHex('aliveColor', 'aliveColorHex'); }
+        if (elimColor) { document.getElementById('elimColor').value = elimColor; updateHex('elimColor', 'elimColorHex'); }
       } else if (msg.type === 'show') {
         document.getElementById('liveStatus').innerText = 'Visible ✅';
-        document.getElementById('liveStatus').style.color = '#00ffcc';
+        document.getElementById('liveStatus').style.color = '#00e676';
       } else if (msg.type === 'hide') {
         document.getElementById('liveStatus').innerText = 'Not Visible ❌';
         document.getElementById('liveStatus').style.color = 'red';
@@ -179,29 +297,32 @@
 
     function sendBackgroundUrl() {
       const url = document.getElementById('bgUrlInput').value.trim();
-      if (!url) return;
-      socket.send(JSON.stringify({ type: 'background', url }));
+      if (url) socket.send(JSON.stringify({ type: 'background', url }));
     }
 
     function sendColorConfig() {
-      const teamColor = document.getElementById('teamColor').value;
-      const killColor = document.getElementById('killColor').value;
-      const aliveColor = document.getElementById('aliveColor').value;
-      const elimColor = document.getElementById('elimColor').value;
-
       socket.send(JSON.stringify({
         type: 'color-config',
-        colors: { teamColor, killColor, aliveColor, elimColor }
+        colors: {
+          teamColor: document.getElementById('teamColor').value,
+          killColor: document.getElementById('killColor').value,
+          aliveColor: document.getElementById('aliveColor').value,
+          elimColor: document.getElementById('elimColor').value
+        }
       }));
+    }
+
+    function updateViewerEliSettings() {
+      const bgUrl = document.getElementById('viewereli-bgurl').value;
+      const textColor = document.getElementById('viewereli-textcolor').value;
+      socket.send(JSON.stringify({ type: 'updateViewerEliSettings', bgUrl, textColor }));
     }
 
     function addTeam() {
       const input = document.getElementById('teamNameInput').value.trim();
       if (!input) return;
-
       const [name, logo] = input.split(/\t|,/).map(x => x.trim());
       if (!name) return;
-
       teams.push({ name, kills: 0, status: ['A', 'A', 'A', 'A'], logo: logo || '' });
       renderTeams();
       sendUpdate();
@@ -211,14 +332,11 @@
     function addTeamsBulk() {
       const input = document.getElementById('bulkTeamInput').value.trim();
       if (!input) return;
-
-      const lines = input.split(/\n+/);
-      lines.forEach(line => {
+      input.split(/\n+/).forEach(line => {
         const [name, logo] = line.split(/\t|,/).map(x => x.trim());
         if (!name) return;
         teams.push({ name, kills: 0, status: ['A', 'A', 'A', 'A'], logo: logo || '' });
       });
-
       renderTeams();
       sendUpdate();
       document.getElementById('bulkTeamInput').value = '';
@@ -227,32 +345,25 @@
     function renderTeams() {
       const container = document.getElementById('team-list');
       container.innerHTML = '';
-
       teams.forEach((team, teamIndex) => {
         const div = document.createElement('div');
         div.className = 'team';
 
         const slot = document.createElement('div');
-        slot.style.width = '40px';
-        slot.style.marginRight = '10px';
+        slot.style.width = '30px';
         slot.innerText = teamIndex + 1;
         div.appendChild(slot);
 
         const nameContainer = document.createElement('div');
         nameContainer.className = 'team-name';
-        nameContainer.style.display = 'flex';
-        nameContainer.style.alignItems = 'center';
-        nameContainer.style.gap = '10px';
 
         const logoImg = document.createElement('img');
-        logoImg.src = team.logo || ''; // Ensure proper logo source
+        logoImg.src = team.logo || '';
         logoImg.alt = 'logo';
         logoImg.style.width = '30px';
         logoImg.style.height = '30px';
         logoImg.style.borderRadius = '5px';
-        logoImg.onerror = () => {
-          logoImg.src = 'fallback.png'; // Fallback if image fails to load
-        };
+        logoImg.onerror = () => { logoImg.src = 'fallback.png'; };
 
         const teamNameText = document.createElement('span');
         teamNameText.innerText = team.name;
@@ -277,7 +388,6 @@
         team.status.forEach((s, playerIndex) => {
           const stat = document.createElement('div');
           if (s === 'F') stat.classList.add('eliminated');
-
           stat.addEventListener('click', () => {
             const newStatus = s === 'F' ? 'A' : 'F';
             teams[teamIndex].status[playerIndex] = newStatus;
@@ -288,7 +398,6 @@
             }, { once: true });
             sendUpdate();
           });
-
           statusContainer.appendChild(stat);
         });
 
@@ -296,20 +405,6 @@
         container.appendChild(div);
       });
     }
-
-    function updateViewerEliSettings() {
-    const bgUrl = document.getElementById('viewereli-bgurl').value;
-    const textColor = document.getElementById('viewereli-textcolor').value;
-
-    const message = {
-        type: 'updateViewerEliSettings',
-        bgUrl: bgUrl,
-        textColor: textColor
-    };
-
-    socket.send(JSON.stringify(message));
-}
-
 
     function sendUpdate() {
       const normalized = teams.map(team => ({
@@ -331,6 +426,16 @@
 
     function sendHide() {
       socket.send(JSON.stringify({ type: 'hide' }));
+    }
+
+    function resetAll() {
+      if (confirm("Are you sure you want to reset all data?")) {
+        teams = [];
+        renderTeams();
+        document.getElementById('liveStatus').innerText = 'Not Visible ❌';
+        document.getElementById('liveStatus').style.color = 'red';
+        socket.send(JSON.stringify({ type: 'reset' }));
+      }
     }
   </script>
 </body>
