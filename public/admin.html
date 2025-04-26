@@ -101,9 +101,19 @@
     <button onclick="sendColorConfig()">🎨 Apply Colors</button>
   </div>
 
-  <textarea id="bulkTeamInput" placeholder="Paste team names (one per line)" rows="6"></textarea><br />
+  <h3>ViewerEliminated Settings</h3>
+
+<label for="viewereli-bgurl">ViewerEli Background Image URL:</label>
+<input type="text" id="viewereli-bgurl" placeholder="Enter background image URL">
+
+<label for="viewereli-textcolor">ViewerEli Text Color:</label>
+<input type="color" id="viewereli-textcolor" value="#FFFFFF">
+
+<button onclick="updateViewerEliSettings()">Update ViewerEli Settings</button>
+
+
+  <textarea id="bulkTeamInput" placeholder="Paste team name and logo URL (comma/tab-separated per line)" rows="6"></textarea><br />
   <button onclick="addTeamsBulk()">Add Teams</button>
-  <br><br>
 
   <input type="text" id="teamNameInput" placeholder="Enter team name"/>
   <button onclick="addTeam()">Add Team</button>
@@ -118,7 +128,6 @@
     Live Status: <span id="liveStatus">Not Visible ❌</span>
   </div>
   
-
   <div id="team-list"></div>
 
   <script>
@@ -132,15 +141,14 @@
     });
 
     function resetAll() {
-  if (confirm("Are you sure you want to reset all data?")) {
-    teams = [];
-    renderTeams();
-    document.getElementById('liveStatus').innerText = 'Not Visible ❌';
-    document.getElementById('liveStatus').style.color = 'red';
-    socket.send(JSON.stringify({ type: 'reset' }));
-  }
-}
-
+      if (confirm("Are you sure you want to reset all data?")) {
+        teams = [];
+        renderTeams();
+        document.getElementById('liveStatus').innerText = 'Not Visible ❌';
+        document.getElementById('liveStatus').style.color = 'red';
+        socket.send(JSON.stringify({ type: 'reset' }));
+      }
+    }
 
     socket.addEventListener('message', (event) => {
       const msg = JSON.parse(event.data);
@@ -148,7 +156,8 @@
         teams = msg.data.map(t => ({
           name: t.teamName,
           kills: t.kills,
-          status: t.status.map(isF => isF ? 'F' : 'A')
+          status: t.status.map(isF => isF ? 'F' : 'A'),
+          logo: t.logo
         }));
         renderTeams();
       } else if (msg.type === 'background') {
@@ -187,9 +196,13 @@
     }
 
     function addTeam() {
-      const teamName = document.getElementById('teamNameInput').value.trim();
-      if (!teamName) return;
-      teams.push({ name: teamName, kills: 0, status: ['A', 'A', 'A', 'A'] });
+      const input = document.getElementById('teamNameInput').value.trim();
+      if (!input) return;
+
+      const [name, logo] = input.split(/\t|,/).map(x => x.trim());
+      if (!name) return;
+
+      teams.push({ name, kills: 0, status: ['A', 'A', 'A', 'A'], logo: logo || '' });
       renderTeams();
       sendUpdate();
       document.getElementById('teamNameInput').value = '';
@@ -198,10 +211,14 @@
     function addTeamsBulk() {
       const input = document.getElementById('bulkTeamInput').value.trim();
       if (!input) return;
-      const names = input.split(/\n+/).map(n => n.trim()).filter(n => n !== '');
-      names.forEach(name => {
-        teams.push({ name, kills: 0, status: ['A', 'A', 'A', 'A'] });
+
+      const lines = input.split(/\n+/);
+      lines.forEach(line => {
+        const [name, logo] = line.split(/\t|,/).map(x => x.trim());
+        if (!name) return;
+        teams.push({ name, kills: 0, status: ['A', 'A', 'A', 'A'], logo: logo || '' });
       });
+
       renderTeams();
       sendUpdate();
       document.getElementById('bulkTeamInput').value = '';
@@ -221,10 +238,28 @@
         slot.innerText = teamIndex + 1;
         div.appendChild(slot);
 
-        const name = document.createElement('div');
-        name.className = 'team-name';
-        name.innerText = team.name;
-        div.appendChild(name);
+        const nameContainer = document.createElement('div');
+        nameContainer.className = 'team-name';
+        nameContainer.style.display = 'flex';
+        nameContainer.style.alignItems = 'center';
+        nameContainer.style.gap = '10px';
+
+        const logoImg = document.createElement('img');
+        logoImg.src = team.logo || ''; // Ensure proper logo source
+        logoImg.alt = 'logo';
+        logoImg.style.width = '30px';
+        logoImg.style.height = '30px';
+        logoImg.style.borderRadius = '5px';
+        logoImg.onerror = () => {
+          logoImg.src = 'fallback.png'; // Fallback if image fails to load
+        };
+
+        const teamNameText = document.createElement('span');
+        teamNameText.innerText = team.name;
+
+        nameContainer.appendChild(logoImg);
+        nameContainer.appendChild(teamNameText);
+        div.appendChild(nameContainer);
 
         const killInput = document.createElement('input');
         killInput.type = 'number';
@@ -262,11 +297,26 @@
       });
     }
 
+    function updateViewerEliSettings() {
+    const bgUrl = document.getElementById('viewereli-bgurl').value;
+    const textColor = document.getElementById('viewereli-textcolor').value;
+
+    const message = {
+        type: 'updateViewerEliSettings',
+        bgUrl: bgUrl,
+        textColor: textColor
+    };
+
+    socket.send(JSON.stringify(message));
+}
+
+
     function sendUpdate() {
       const normalized = teams.map(team => ({
         teamName: team.name,
         kills: team.kills,
-        status: team.status.map(s => s === 'F')
+        status: team.status.map(s => s === 'F'),
+        logo: team.logo || ''
       }));
 
       socket.send(JSON.stringify({

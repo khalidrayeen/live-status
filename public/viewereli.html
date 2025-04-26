@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Team Eliminated Viewer</title>
+  <style>
+    body {
+      margin: 0;
+      background: transparent;
+      overflow: hidden;
+      font-family: 'Arial', sans-serif;
+    }
+
+    #popup {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.9);
+      display: flex;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.5); /* fallback dark overlay */
+      border-radius: 1px;
+      padding: 20px 30px;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+      opacity: 0;
+      z-index: 9999;
+      transition: transform 0.2s ease-out, opacity 0.2s ease-out, background-image 0.5s ease-in-out;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+
+    #popup.show {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+    }
+
+    #teamLogo {
+      width: 60px;
+      height: 60px;
+      object-fit: contain;
+      margin-right: 20px;
+      background-color: transparent;
+    }
+
+    .team-info {
+      flex: 1;
+      font-size: 28px;
+      font-weight: bold;
+      color: #ffffff; /* Default text color */
+      transition: color 0.3s ease;
+    }
+
+    .kills {
+      text-align: right;
+      padding-left: 20px;
+    }
+
+    .finishes {
+      font-size: 26px;
+      font-weight: bold;
+      color: #ffffff; /* Default text color */
+      transition: color 0.3s ease;
+    }
+
+    .eliminated-text {
+      font-size: 18px;
+      font-weight: bold;
+      color: #ffffff; /* Default text color */
+      opacity: 0.9;
+      transition: color 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+  <div id="popup">
+    <img id="teamLogo" src="" alt="Team Logo">
+    <div class="team-info" id="teamName">Team Name</div>
+    <div class="kills">
+      <div class="finishes" id="teamKills">0 FINISHES</div>
+      <div class="eliminated-text">ELIMINATED</div>
+    </div>
+  </div>
+
+  <script>
+    const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
+    const socket = new WebSocket(`${protocol}${location.host}`);
+
+    let previousEliminatedTeams = new Set();
+
+    socket.addEventListener('message', event => {
+      const msg = JSON.parse(event.data);
+
+      if (msg.type === 'update') {
+        console.log('Received update:', msg.data);
+        msg.data.forEach(team => {
+          const eliminated = team.status.every(player => player);
+          const teamId = team.teamName;
+
+          if (eliminated && !previousEliminatedTeams.has(teamId)) {
+            previousEliminatedTeams.add(teamId);
+            showEliminationPopup(team.teamName, team.kills, team.logo);
+          }
+        });
+      }
+
+      if (msg.type === 'reset') {
+        previousEliminatedTeams.clear();
+      }
+
+      if (msg.type === 'updateViewerEliSettings') {
+        const popup = document.getElementById('popup');
+        if (msg.bgUrl !== undefined) {
+          popup.style.backgroundImage = msg.bgUrl ? `url('${msg.bgUrl}')` : 'none';
+        }
+        if (msg.textColor) {
+          document.querySelectorAll('.team-info, .finishes, .eliminated-text').forEach(el => {
+            el.style.color = msg.textColor;
+          });
+        }
+      }
+    });
+
+    function showEliminationPopup(name, kills, logo) {
+      const popup = document.getElementById('popup');
+      document.getElementById('teamName').innerText = name;
+      document.getElementById('teamKills').innerText = `${kills} FINISHES`;
+
+      const logoImg = document.getElementById('teamLogo');
+      logoImg.src = logo || '';
+      logoImg.onerror = () => {
+        console.warn("Broken logo:", logo);
+        logoImg.src = 'fallback.png'; // your fallback logo
+      };
+
+      popup.classList.add('show');
+      setTimeout(() => {
+        popup.classList.remove('show');
+      }, 3000);
+    }
+  </script>
+</body>
+</html>

@@ -33,6 +33,14 @@ module.exports = function (wss) {
             bgUrl = msg.url;
             broadcast({ type: 'background', url: bgUrl });
             break;
+          
+            case 'updateViewerEliSettings':
+              broadcast({
+                type: 'updateViewerEliSettings',
+                bgUrl: msg.bgUrl,
+                textColor: msg.textColor
+                        });
+            break;
 
           case 'update':
             leaderboardData = msg.data;
@@ -60,6 +68,8 @@ module.exports = function (wss) {
             bgUrl = '';
             broadcast({ type: 'reset' });
             break;
+
+
 
           default:
             console.log("⚠️ Unknown message type:", msg.type);
