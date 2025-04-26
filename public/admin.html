@@ -167,12 +167,13 @@
   </style>
 </head>
 <body>
-  <h1>BGMI LIVE STATUS</h1>
+  <h1>BGMI LIVE STATUS AND ELIMINATION PANNEL</h1>
 
   <div class="section">
     <input type="text" id="bgUrlInput" placeholder="Paste background image URL">
     <button onclick="handleAction(sendBackgroundUrl)">Set Background</button>
   </div>
+  
 
   <div class="section">
     <label>Team Text Color:</label>
@@ -221,6 +222,8 @@
     </div>
     <button onclick="handleAction(updateViewerEliSettings)">Update ViewerEli Settings</button>
   </div>
+  <input type="number" id="startNumberInput" placeholder="Enter Starting Slot Number" value="2">
+
 
   <div class="section">
     <textarea id="bulkTeamInput" placeholder="Paste team name and logo URL (comma/tab-separated per line)" rows="6"></textarea>
@@ -345,13 +348,21 @@
     function renderTeams() {
       const container = document.getElementById('team-list');
       container.innerHTML = '';
+
+
+          // Get the starting number from input
+      const startNumberInput = document.getElementById('startNumberInput');
+      const startNumber = parseInt(startNumberInput.value) || 1
+
       teams.forEach((team, teamIndex) => {
         const div = document.createElement('div');
         div.className = 'team';
 
         const slot = document.createElement('div');
+        slot.className ='slot';
+
         slot.style.width = '30px';
-        slot.innerText = teamIndex + 1;
+       slot.innerText = startNumber + teamIndex;
         div.appendChild(slot);
 
         const nameContainer = document.createElement('div');
